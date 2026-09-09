@@ -4,18 +4,18 @@ const db = require("../db");
  * Configurable multi-department routing layer
  * Automatically routes grievance to active officer in target department based on workload.
  */
-function routeAndAssignGrievance(grievanceId) {
-  const grievance = db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
+async function routeAndAssignGrievance(grievanceId) {
+  const grievance = await db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
   if (!grievance) return null;
 
   // Find department ID for grievance category
-  const dept = db.prepare("SELECT id FROM departments WHERE name = ?").get(grievance.department);
+  const dept = await db.prepare("SELECT id FROM departments WHERE name = ?").get(grievance.department);
   let deptId = dept ? dept.id : null;
 
   // Find active officer in department with lowest active workload
   let assignedOfficer = null;
   if (deptId) {
-    assignedOfficer = db
+    assignedOfficer = await db
       .prepare(`
         SELECT u.id, u.name, u.email, COUNT(g.id) as active_workload
         FROM users u
@@ -30,7 +30,7 @@ function routeAndAssignGrievance(grievanceId) {
 
   // Fallback to any active officer if department officer not assigned
   if (!assignedOfficer) {
-    assignedOfficer = db
+    assignedOfficer = await db
       .prepare(`
         SELECT id, name, email FROM users WHERE role = 'OFFICER' LIMIT 1
       `)
@@ -38,14 +38,14 @@ function routeAndAssignGrievance(grievanceId) {
   }
 
   if (assignedOfficer) {
-    db.prepare(`
+    await db.prepare(`
       UPDATE grievances
       SET assigned_officer_id = ?, status = 'ASSIGNED', updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(assignedOfficer.id, grievanceId);
 
     // Record status history transition
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO grievance_status_history (grievance_id, previous_status, new_status, notes)
       VALUES (?, 'SUBMITTED', 'ASSIGNED', ?)
     `).run(grievanceId, `Automatically routed to ${grievance.department} and assigned to Officer ${assignedOfficer.name}`);

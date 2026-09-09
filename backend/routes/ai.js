@@ -52,12 +52,12 @@ router.post("/admin-assistant", authenticateToken, requireRole("DEPARTMENT_ADMIN
     }
 
     // 1. Gather exact SQL metrics from database
-    const totalCount = db.prepare("SELECT COUNT(*) as cnt FROM grievances").get().cnt;
-    const pendingCount = db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('SUBMITTED', 'ASSIGNED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'REOPENED')").get().cnt;
-    const resolvedCount = db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED')").get().cnt;
-    const escalatedCount = db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE is_escalated = 1 OR status = 'ESCALATED'").get().cnt;
+    const totalCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances").get().cnt;
+    const pendingCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('SUBMITTED', 'ASSIGNED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'REOPENED')").get().cnt;
+    const resolvedCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED')").get().cnt;
+    const escalatedCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE is_escalated = 1 OR status = 'ESCALATED'").get().cnt;
 
-    const categoryBreakdown = db
+    const categoryBreakdown = await db
       .prepare(`
       SELECT category, COUNT(*) as count
       FROM grievances
@@ -65,7 +65,7 @@ router.post("/admin-assistant", authenticateToken, requireRole("DEPARTMENT_ADMIN
     `)
       .all();
 
-    const departmentBreakdown = db
+    const departmentBreakdown = await db
       .prepare(`
       SELECT department, COUNT(*) as count
       FROM grievances
@@ -73,7 +73,7 @@ router.post("/admin-assistant", authenticateToken, requireRole("DEPARTMENT_ADMIN
     `)
       .all();
 
-    const priorityBreakdown = db
+    const priorityBreakdown = await db
       .prepare(`
       SELECT priority, COUNT(*) as count
       FROM grievances
@@ -141,7 +141,7 @@ Provide a clear, concise, executive analytical summary with key metrics and acti
  * POST /api/ai/semantic-search
  * Semantic Vector Search over Grievances
  */
-router.post("/semantic-search", authenticateToken, (req, res) => {
+router.post("/semantic-search", authenticateToken, async (req, res) => {
   try {
     const { query } = req.body;
     if (!query) {
@@ -150,7 +150,7 @@ router.post("/semantic-search", authenticateToken, (req, res) => {
 
     const keywords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
 
-    const allGrievances = db.prepare("SELECT * FROM grievances").all();
+    const allGrievances = await db.prepare("SELECT * FROM grievances").all();
 
     const matches = allGrievances
       .map((g) => {

@@ -8,10 +8,10 @@ const router = express.Router();
  * GET /api/departments
  * Fetch all available departments & categories
  */
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const departments = db.prepare("SELECT * FROM departments ORDER BY name ASC").all();
-    const categories = db.prepare("SELECT * FROM grievance_categories ORDER BY name ASC").all();
+    const departments = await db.prepare("SELECT * FROM departments ORDER BY name ASC").all();
+    const categories = await db.prepare("SELECT * FROM grievance_categories ORDER BY name ASC").all();
 
     return res.json({
       departments,

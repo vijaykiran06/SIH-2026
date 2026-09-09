@@ -10,7 +10,7 @@ const router = express.Router();
  * POST /api/auth/register
  * Register a new citizen account
  */
-router.post("/register", (req, res) => {
+router.post("/register", async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
 
@@ -18,13 +18,13 @@ router.post("/register", (req, res) => {
       return res.status(400).json({ error: "Name, email, and password are required." });
     }
 
-    const existingUser = db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase().trim());
+    const existingUser = await db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase().trim());
     if (existingUser) {
       return res.status(400).json({ error: "An account with this email address already exists." });
     }
 
     const password_hash = bcrypt.hashSync(password, 10);
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO users (name, email, password_hash, role, phone)
       VALUES (?, ?, ?, 'CITIZEN', ?)
     `).run(name.trim(), email.toLowerCase().trim(), password_hash, phone || null);
@@ -54,7 +54,7 @@ router.post("/register", (req, res) => {
  * POST /api/auth/login
  * User authentication endpoint
  */
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -62,7 +62,7 @@ router.post("/login", (req, res) => {
       return res.status(400).json({ error: "Email and password are required." });
     }
 
-    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email.toLowerCase().trim());
+    const user = await db.prepare("SELECT * FROM users WHERE email = ?").get(email.toLowerCase().trim());
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password." });
     }
@@ -97,7 +97,7 @@ router.post("/login", (req, res) => {
  * GET /api/auth/me
  * Get active authenticated user details
  */
-router.get("/me", authenticateToken, (req, res) => {
+router.get("/me", authenticateToken, async (req, res) => {
   return res.json({ user: req.user });
 });
 

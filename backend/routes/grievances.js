@@ -49,7 +49,7 @@ router.post("/", authenticateToken, async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?)
     `);
 
-    const result = insertStmt.run(
+    const result = await insertStmt.run(
       tracking_number,
       citizen_id,
       category,
@@ -67,13 +67,13 @@ router.post("/", authenticateToken, async (req, res) => {
     const grievanceId = result.lastInsertRowid;
 
     if (location_text) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO locations (grievance_id, location_text, latitude, longitude)
         VALUES (?, ?, ?, ?)
       `).run(grievanceId, location_text.trim(), latitude || null, longitude || null);
     }
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO ai_analysis (grievance_id, extracted_json, confidence)
       VALUES (?, ?, ?)
     `).run(
@@ -82,12 +82,12 @@ router.post("/", authenticateToken, async (req, res) => {
       ai_confidence
     );
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO grievance_status_history (grievance_id, previous_status, new_status, changed_by_user_id, notes)
       VALUES (?, NULL, 'SUBMITTED', ?, 'Grievance submitted by citizen via AI Assistant')
     `).run(grievanceId, citizen_id);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, details)
       VALUES (?, 'GRIEVANCE_CREATED', 'grievances', ?, ?)
     `).run(citizen_id, tracking_number, `Created grievance ${tracking_number}`);
@@ -99,19 +99,19 @@ router.post("/", authenticateToken, async (req, res) => {
     routeAndAssignGrievance(grievanceId);
 
     // Run FAISS Vector Duplicate Check asynchronously
-    const targetGrv = db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
+    const targetGrv = await db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
     const duplicates = await findDuplicatesForGrievance(targetGrv);
 
     if (duplicates && duplicates.length > 0) {
       const topDup = duplicates[0];
-      db.prepare(`
+      await db.prepare(`
         UPDATE grievances
         SET is_duplicate = 1, duplicate_of_id = ?, duplicate_confidence = ?
         WHERE id = ?
       `).run(topDup.duplicate_grievance_id, topDup.confidence, grievanceId);
     }
 
-    const createdGrievance = db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
+    const createdGrievance = await db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
 
     return res.status(201).json({
       message: "Grievance registered successfully.",
@@ -129,12 +129,12 @@ router.post("/", authenticateToken, async (req, res) => {
  * GET /api/grievances
  * Retrieve grievance list based on active user role
  */
-router.get("/", authenticateToken, (req, res) => {
+router.get("/", authenticateToken, async (req, res) => {
   try {
     let grievances = [];
 
     if (req.user.role === "CITIZEN") {
-      grievances = db
+      grievances = await db
         .prepare(`
         SELECT g.*, u.name as citizen_name
         FROM grievances g
@@ -144,7 +144,7 @@ router.get("/", authenticateToken, (req, res) => {
       `)
         .all(req.user.id);
     } else if (req.user.role === "OFFICER") {
-      grievances = db
+      grievances = await db
         .prepare(`
         SELECT g.*, u.name as citizen_name
         FROM grievances g
@@ -154,7 +154,7 @@ router.get("/", authenticateToken, (req, res) => {
       `)
         .all(req.user.id, req.user.department_id);
     } else {
-      grievances = db
+      grievances = await db
         .prepare(`
         SELECT g.*, u.name as citizen_name, off.name as officer_name
         FROM grievances g
@@ -176,13 +176,13 @@ router.get("/", authenticateToken, (req, res) => {
  * GET /api/grievances/:id
  * Retrieve single grievance with timeline history
  */
-router.get("/:id", authenticateToken, (req, res) => {
+router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const idOrTracking = req.params.id;
 
     let grievance = isNaN(idOrTracking)
-      ? db.prepare("SELECT * FROM grievances WHERE tracking_number = ?").get(idOrTracking)
-      : db.prepare("SELECT * FROM grievances WHERE id = ?").get(idOrTracking);
+      ? await db.prepare("SELECT * FROM grievances WHERE tracking_number = ?").get(idOrTracking)
+      : await db.prepare("SELECT * FROM grievances WHERE id = ?").get(idOrTracking);
 
     if (!grievance) {
       return res.status(404).json({ error: "Grievance not found." });
@@ -192,7 +192,7 @@ router.get("/:id", authenticateToken, (req, res) => {
       return res.status(403).json({ error: "Forbidden. Access restricted to complaint owner." });
     }
 
-    const history = db
+    const history = await db
       .prepare(`
       SELECT h.*, u.name as changed_by_name
       FROM grievance_status_history h
@@ -213,12 +213,12 @@ router.get("/:id", authenticateToken, (req, res) => {
  * PATCH /api/grievances/:id/status
  * Update grievance status lifecycle (Officer / Admin workflow)
  */
-router.patch("/:id/status", authenticateToken, requireRole("OFFICER", "DEPARTMENT_ADMIN", "SUPER_ADMIN"), (req, res) => {
+router.patch("/:id/status", authenticateToken, requireRole("OFFICER", "DEPARTMENT_ADMIN", "SUPER_ADMIN"), async (req, res) => {
   try {
     const grievanceId = req.params.id;
     const { status, notes } = req.body;
 
-    const grievance = db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
+    const grievance = await db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
     if (!grievance) {
       return res.status(404).json({ error: "Grievance not found." });
     }
@@ -229,23 +229,23 @@ router.patch("/:id/status", authenticateToken, requireRole("OFFICER", "DEPARTMEN
       resolvedAt = new Date().toISOString();
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE grievances
       SET status = ?, resolution_notes = ?, resolved_at = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(status, notes || null, resolvedAt, grievanceId);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO grievance_status_history (grievance_id, previous_status, new_status, changed_by_user_id, notes)
       VALUES (?, ?, ?, ?, ?)
     `).run(grievanceId, prevStatus, status, req.user.id, notes || `Status changed from ${prevStatus} to ${status}`);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (user_id, action, entity_name, entity_id, details)
       VALUES (?, 'STATUS_UPDATE', 'grievances', ?, ?)
     `).run(req.user.id, grievance.tracking_number, `Status updated to ${status}`);
 
-    const updated = db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
+    const updated = await db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
     return res.json({ message: "Status updated successfully.", grievance: updated });
   } catch (err) {
     console.error("Error updating status:", err);
@@ -257,12 +257,12 @@ router.patch("/:id/status", authenticateToken, requireRole("OFFICER", "DEPARTMEN
  * POST /api/grievances/:id/verify
  * Citizen Resolution Verification Feedback Loop (Prevents false resolution)
  */
-router.post("/:id/verify", authenticateToken, (req, res) => {
+router.post("/:id/verify", authenticateToken, async (req, res) => {
   try {
     const grievanceId = req.params.id;
     const { verified, reason } = req.body;
 
-    const grievance = db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
+    const grievance = await db.prepare("SELECT * FROM grievances WHERE id = ?").get(grievanceId);
     if (!grievance) {
       return res.status(404).json({ error: "Grievance not found." });
     }
@@ -272,13 +272,13 @@ router.post("/:id/verify", authenticateToken, (req, res) => {
     }
 
     if (verified) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE grievances
         SET status = 'CITIZEN_VERIFIED', verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(grievanceId);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO grievance_status_history (grievance_id, previous_status, new_status, changed_by_user_id, notes)
         VALUES (?, 'RESOLVED', 'CITIZEN_VERIFIED', ?, 'Citizen confirmed resolution: YES, RESOLVED')
       `).run(grievanceId, req.user.id);
@@ -288,18 +288,18 @@ router.post("/:id/verify", authenticateToken, (req, res) => {
       // Citizen indicates issue persists → REOPEN & ESCALATE
       const newReopenCount = (grievance.reopen_count || 0) + 1;
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE grievances
         SET status = 'REOPENED', is_escalated = 1, escalation_level = 2, reopen_count = ?, reopen_reason = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(newReopenCount, reason || "Citizen stated issue persists after resolution attempt", grievanceId);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO grievance_status_history (grievance_id, previous_status, new_status, changed_by_user_id, notes)
         VALUES (?, 'RESOLVED', 'REOPENED', ?, ?)
       `).run(grievanceId, req.user.id, `CITIZEN REOPENED: ${reason || "Issue persists"}`);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO escalations (grievance_id, escalated_from_officer_id, reason, level, status)
         VALUES (?, ?, 'Reopened by citizen after false resolution marking', 2, 'REOPENED')
       `).run(grievanceId, grievance.assigned_officer_id || null);

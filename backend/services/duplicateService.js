@@ -7,7 +7,7 @@ const db = require("../db");
  */
 async function findDuplicatesForGrievance(targetGrievance) {
   // Fetch existing candidate grievances in same/all categories
-  const candidates = db
+  const candidates = await db
     .prepare(`
       SELECT id, tracking_number, category, subcategory, description, location_text, latitude, longitude, created_at
       FROM grievances
@@ -59,7 +59,7 @@ async function findDuplicatesForGrievance(targetGrievance) {
   });
 }
 
-function jsFallbackDuplicates(target, candidates) {
+async function jsFallbackDuplicates(target, candidates) {
   const results = [];
   const targetWords = new Set((target.description || "").toLowerCase().split(/\s+/));
 

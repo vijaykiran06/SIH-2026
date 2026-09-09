@@ -2,10 +2,11 @@ const bcrypt = require("bcryptjs");
 const db = require("./db");
 const { generateGrievanceId } = require("./services/idGenerator");
 
-function seedData() {
-  console.log("Seeding database with full SIH civic grievance demo data...");
+async function seedData() {
+  await db.initDatabase();
+  console.log("Seeding database");
 
-  db.exec(`
+  await db.exec(`
     DELETE FROM audit_logs;
     DELETE FROM grievance_status_history;
     DELETE FROM ai_analysis;
@@ -36,7 +37,7 @@ function seedData() {
 
   const deptIds = {};
   for (const d of depts) {
-    const res = deptStmt.run(d.name, d.code, d.description);
+    const res = await deptStmt.run(d.name, d.code, d.description);
     deptIds[d.name] = res.lastInsertRowid;
   }
 
@@ -63,10 +64,10 @@ function seedData() {
   ];
 
   for (const c of categories) {
-    catStmt.run(deptIds[c.dept], c.name, `${c.name} civic issue`, c.priority, c.sla);
+    await catStmt.run(deptIds[c.dept], c.name, `${c.name} civic issue`, c.priority, c.sla);
     for (const p of ["LOW", "MEDIUM", "HIGH", "CRITICAL"]) {
       const hours = p === "CRITICAL" ? 6 : p === "HIGH" ? 24 : p === "MEDIUM" ? 48 : 72;
-      slaStmt.run(c.name, p, hours);
+      await slaStmt.run(c.name, p, hours);
     }
   }
 
@@ -77,15 +78,15 @@ function seedData() {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const c1 = userStmt.run("Rahul Sharma", "citizen@sih.gov.in", passwordHash, "CITIZEN", null, "9876543210", "Zone 4").lastInsertRowid;
-  const c2 = userStmt.run("Priya Verma", "priya@sih.gov.in", passwordHash, "CITIZEN", null, "9876543211", "Zone 2").lastInsertRowid;
-  const c3 = userStmt.run("Amit Patel", "amit@sih.gov.in", passwordHash, "CITIZEN", null, "9876543214", "Zone 4").lastInsertRowid;
+  const c1 = (await userStmt.run("Rahul Sharma", "citizen@sih.gov.in", passwordHash, "CITIZEN", null, "9876543210", "Zone 4")).lastInsertRowid;
+  const c2 = (await userStmt.run("Priya Verma", "priya@sih.gov.in", passwordHash, "CITIZEN", null, "9876543211", "Zone 2")).lastInsertRowid;
+  const c3 = (await userStmt.run("Amit Patel", "amit@sih.gov.in", passwordHash, "CITIZEN", null, "9876543214", "Zone 4")).lastInsertRowid;
 
-  const oWater = userStmt.run("Officer Vikram (Water)", "officer@sih.gov.in", passwordHash, "OFFICER", deptIds["Water Department"], "9876543212", "Zone 4").lastInsertRowid;
-  const oPWD = userStmt.run("Officer Rajesh (PWD)", "pwd_officer@sih.gov.in", passwordHash, "OFFICER", deptIds["Public Works Department"], "9876543215", "Zone 2").lastInsertRowid;
-  const oElec = userStmt.run("Officer Sunita (Electricity)", "elec_officer@sih.gov.in", passwordHash, "OFFICER", deptIds["Electricity Department"], "9876543216", "Zone 1").lastInsertRowid;
+  const oWater = (await userStmt.run("Officer Vikram (Water)", "officer@sih.gov.in", passwordHash, "OFFICER", deptIds["Water Department"], "9876543212", "Zone 4")).lastInsertRowid;
+  const oPWD = (await userStmt.run("Officer Rajesh (PWD)", "pwd_officer@sih.gov.in", passwordHash, "OFFICER", deptIds["Public Works Department"], "9876543215", "Zone 2")).lastInsertRowid;
+  const oElec = (await userStmt.run("Officer Sunita (Electricity)", "elec_officer@sih.gov.in", passwordHash, "OFFICER", deptIds["Electricity Department"], "9876543216", "Zone 1")).lastInsertRowid;
 
-  userStmt.run("Super Admin Executive", "admin@sih.gov.in", passwordHash, "SUPER_ADMIN", null, "9876543213", "All Zones");
+  await userStmt.run("Super Admin Executive", "admin@sih.gov.in", passwordHash, "SUPER_ADMIN", null, "9876543213", "All Zones");
 
   // 4. Grievances
   const grievanceStmt = db.prepare(`
@@ -195,7 +196,7 @@ function seedData() {
 
   for (const sg of seedGrievances) {
     const trackingId = generateGrievanceId();
-    const res = grievanceStmt.run(
+    const res = await grievanceStmt.run(
       trackingId,
       sg.citizenId,
       sg.category,
@@ -214,8 +215,8 @@ function seedData() {
       sg.escLevel
     );
     const grvId = res.lastInsertRowid;
-    locationStmt.run(grvId, sg.location_text, sg.lat, sg.lng);
-    historyStmt.run(grvId, sg.status, sg.citizenId, `Seeded grievance ${trackingId}`);
+    await locationStmt.run(grvId, sg.location_text, sg.lat, sg.lng);
+    await historyStmt.run(grvId, sg.status, sg.citizenId, `Seeded grievance ${trackingId}`);
   }
 
   console.log("Full database seeded successfully!");

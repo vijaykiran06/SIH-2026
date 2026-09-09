@@ -13,19 +13,19 @@ async function runPhase2Tests() {
   let passedCount = 0;
   let failedCount = 0;
 
-  function logPass(testName) {
+  async function logPass(testName) {
     passedCount++;
     console.log(`✅ PASS: ${testName}`);
   }
 
-  function logFail(testName, err) {
+  async function logFail(testName, err) {
     failedCount++;
     console.error(`❌ FAIL: ${testName}`, err.message);
   }
 
   // Fetch test users from seeded DB
-  const citizen1 = db.prepare("SELECT * FROM users WHERE email = 'citizen@sih.gov.in'").get();
-  const citizen2 = db.prepare("SELECT * FROM users WHERE email = 'priya@sih.gov.in'").get();
+  const citizen1 = await db.prepare("SELECT * FROM users WHERE email = 'citizen@sih.gov.in'").get();
+  const citizen2 = await db.prepare("SELECT * FROM users WHERE email = 'priya@sih.gov.in'").get();
 
   assert(citizen1 && citizen2, "Seed users must exist in DB");
 
@@ -76,7 +76,7 @@ async function runPhase2Tests() {
   // TEST 5: Valid Grievance Database Creation
   try {
     const trackingId = generateGrievanceId();
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO grievances (
         tracking_number, citizen_id, category, subcategory, department,
         priority, description, location_text, status
@@ -84,7 +84,7 @@ async function runPhase2Tests() {
     `).run(trackingId, citizen1.id);
 
     assert(result.lastInsertRowid > 0, "Insert should succeed");
-    const record = db.prepare("SELECT * FROM grievances WHERE id = ?").get(result.lastInsertRowid);
+    const record = await db.prepare("SELECT * FROM grievances WHERE id = ?").get(result.lastInsertRowid);
     assert.strictEqual(record.status, "SUBMITTED");
     assert.strictEqual(record.tracking_number, trackingId);
     logPass("Valid Grievance Database Record Creation & Initial SUBMITTED Status");
@@ -104,8 +104,8 @@ async function runPhase2Tests() {
 
   // TEST 7: Status History & Audit Trail Logging
   try {
-    const grv = db.prepare("SELECT id FROM grievances WHERE citizen_id = ?").get(citizen1.id);
-    const history = db.prepare("SELECT * FROM grievance_status_history WHERE grievance_id = ?").all(grv.id);
+    const grv = await db.prepare("SELECT id FROM grievances WHERE citizen_id = ?").get(citizen1.id);
+    const history = await db.prepare("SELECT * FROM grievance_status_history WHERE grievance_id = ?").all(grv.id);
     assert(history.length > 0, "Grievance status history records must exist");
     assert(history[0].new_status !== undefined, "Status transition record must have new_status defined");
     logPass("Audit History & Status Transition Logging");
@@ -115,7 +115,7 @@ async function runPhase2Tests() {
 
   // TEST 8: Citizen Access Control Security Check (Citizen A vs Citizen B)
   try {
-    const grvCitizen1 = db.prepare("SELECT * FROM grievances WHERE citizen_id = ?").get(citizen1.id);
+    const grvCitizen1 = await db.prepare("SELECT * FROM grievances WHERE citizen_id = ?").get(citizen1.id);
 
     // Verify Citizen 1 matches citizen1.id
     assert.strictEqual(grvCitizen1.citizen_id, citizen1.id);
@@ -149,14 +149,14 @@ async function runPhase2Tests() {
 
     // Step 2: Citizen Confirmation & Record creation
     const trackingNo = generateGrievanceId();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO grievances (
         tracking_number, citizen_id, category, subcategory, department,
         priority, description, location_text, status
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')
     `).run(trackingNo, citizen1.id, aiParsed.category, aiParsed.subcategory, aiParsed.department, aiParsed.priority, aiParsed.description, aiParsed.location_text);
 
-    const saved = db.prepare("SELECT * FROM grievances WHERE tracking_number = ?").get(trackingNo);
+    const saved = await db.prepare("SELECT * FROM grievances WHERE tracking_number = ?").get(trackingNo);
     assert(saved !== undefined, "Saved grievance must be retrieved");
     assert.strictEqual(saved.tracking_number, trackingNo);
     assert.strictEqual(saved.status, "SUBMITTED");

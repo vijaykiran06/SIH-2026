@@ -45,7 +45,7 @@ const AIOutputSchema = z.object({
  * Robust Heuristic Fallback Classifier
  * Used when Gemini API key is not set or API request fails/times out.
  */
-function fallbackClassify(text, existingLocation = null) {
+async function fallbackClassify(text, existingLocation = null) {
   const lower = text.toLowerCase();
   let category = "Roads / PWD";
   let subcategory = "Road Maintenance";
