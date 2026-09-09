@@ -1,47 +1,46 @@
 const express = require("express");
-const { parseGrievanceText } = require("../services/aiService");
+const { processUserMessage } = require("../services/localAIService");
 const { authenticateToken, requireRole } = require("../middleware/auth");
 const db = require("../db");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const router = express.Router();
 
 /**
  * POST /api/ai/parse-complaint
- * AI Conversational Grievance Parser Endpoint
+ * Two-Stage Conversational Grievance Parser Endpoint (100% Local Offline AI Pipeline)
  */
 router.post("/parse-complaint", authenticateToken, async (req, res) => {
   try {
-    const { text, location_text, conversation_history } = req.body;
+    const { text, location_text, conversation_state } = req.body;
 
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ error: "Text description is required." });
     }
 
-    const aiResult = await parseGrievanceText(text, location_text, conversation_history);
-
-    let aiMessage = "";
-    if (aiResult.missing_information.includes("location_text")) {
-      aiMessage = `I understand this is a ${aiResult.category} issue (${aiResult.subcategory}). Where is the problem occurring?`;
-    } else {
-      aiMessage = `Thank you! I have gathered enough information to lodge your ${aiResult.category} grievance with the ${aiResult.department}.`;
+    const state = conversation_state || {};
+    if (location_text && !state.pendingGrievance?.location_text) {
+      state.pendingGrievance = { ...state.pendingGrievance, location_text };
     }
+
+    const pipelineResult = await processUserMessage(text, state);
 
     return res.json({
       success: true,
-      ai_message: aiMessage,
-      extracted_data: aiResult,
+      is_grievance: pipelineResult.is_grievance,
+      intent: pipelineResult.intent,
+      ai_message: pipelineResult.ai_message,
+      extracted_data: pipelineResult.extracted_data,
+      conversation_state: pipelineResult.conversation_state,
     });
   } catch (err) {
-    console.error("AI Parse error:", err);
-    return res.status(500).json({ error: "Failed to process complaint text with AI.", details: err.message });
+    console.error("Local AI Parse error:", err);
+    return res.status(500).json({ error: "Failed to process message with local AI pipeline.", details: err.message });
   }
 });
 
 /**
  * POST /api/ai/admin-assistant
- * Database-Grounded AI Analytics Assistant
- * Zero invented statistics: All numerical answers come directly from SQL database context!
+ * Database-Grounded Local Analytics Assistant
  */
 router.post("/admin-assistant", authenticateToken, requireRole("DEPARTMENT_ADMIN", "SUPER_ADMIN", "OFFICER"), async (req, res) => {
   try {
@@ -51,35 +50,13 @@ router.post("/admin-assistant", authenticateToken, requireRole("DEPARTMENT_ADMIN
       return res.status(400).json({ error: "Question is required." });
     }
 
-    // 1. Gather exact SQL metrics from database
-    const totalCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances").get().cnt;
-    const pendingCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('SUBMITTED', 'ASSIGNED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'REOPENED')").get().cnt;
-    const resolvedCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED')").get().cnt;
-    const escalatedCount = await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE is_escalated = 1 OR status = 'ESCALATED'").get().cnt;
+    const totalCount = (await db.prepare("SELECT COUNT(*) as cnt FROM grievances").get()).cnt;
+    const pendingCount = (await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('SUBMITTED', 'ASSIGNED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'REOPENED')").get()).cnt;
+    const resolvedCount = (await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE status IN ('RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED')").get()).cnt;
+    const escalatedCount = (await db.prepare("SELECT COUNT(*) as cnt FROM grievances WHERE is_escalated = 1 OR status = 'ESCALATED'").get()).cnt;
 
-    const categoryBreakdown = await db
-      .prepare(`
-      SELECT category, COUNT(*) as count
-      FROM grievances
-      GROUP BY category ORDER BY count DESC
-    `)
-      .all();
-
-    const departmentBreakdown = await db
-      .prepare(`
-      SELECT department, COUNT(*) as count
-      FROM grievances
-      GROUP BY department ORDER BY count DESC
-    `)
-      .all();
-
-    const priorityBreakdown = await db
-      .prepare(`
-      SELECT priority, COUNT(*) as count
-      FROM grievances
-      GROUP BY priority
-    `)
-      .all();
+    const categoryBreakdown = await db.prepare("SELECT category, COUNT(*) as count FROM grievances GROUP BY category ORDER BY count DESC").all();
+    const departmentBreakdown = await db.prepare("SELECT department, COUNT(*) as count FROM grievances GROUP BY department ORDER BY count DESC").all();
 
     const dbContext = {
       total_grievances: totalCount,
@@ -88,49 +65,27 @@ router.post("/admin-assistant", authenticateToken, requireRole("DEPARTMENT_ADMIN
       escalated_grievances: escalatedCount,
       category_breakdown: categoryBreakdown,
       department_breakdown: departmentBreakdown,
-      priority_breakdown: priorityBreakdown,
     };
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const qLower = question.toLowerCase();
+    let answer = "";
 
-    if (apiKey && apiKey.trim() !== "") {
-      try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        const prompt = `
-You are an executive AI assistant for civic government administrators.
-Answer the official's question strictly using the provided database statistics.
-DO NOT invent or extrapolate statistics not supported by the database context.
-
-DATABASE CONTEXT:
-${JSON.stringify(dbContext, null, 2)}
-
-OFFICIAL'S QUESTION: "${question}"
-
-Provide a clear, concise, executive analytical summary with key metrics and actionable insights.
-`;
-
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-
-        return res.json({
-          answer: responseText,
-          metrics: dbContext,
-        });
-      } catch (e) {
-        console.error("Gemini Admin Assistant error:", e.message);
-      }
+    if (qLower.includes("biggest") || qLower.includes("top") || qLower.includes("category")) {
+      const topCat = categoryBreakdown[0] ? `${categoryBreakdown[0].category} (${categoryBreakdown[0].count} complaints)` : "None";
+      const catList = categoryBreakdown.map((c) => `- ${c.category}: ${c.count}`).join("\n");
+      answer = `Based on live database records, the largest grievance category is ${topCat}.\n\nCategory Distribution:\n${catList}`;
+    } else if (qLower.includes("unresolved") || qLower.includes("pending")) {
+      answer = `There are currently ${pendingCount} unresolved grievances pending officer action across departments out of ${totalCount} total registered complaints.`;
+    } else if (qLower.includes("breach") || qLower.includes("escalat")) {
+      answer = `There are currently ${escalatedCount} grievances that have breached SLA timelines and been automatically escalated to senior department officers.`;
+    } else if (qLower.includes("department")) {
+      const deptList = departmentBreakdown.map((d) => `- ${d.department}: ${d.count} complaints`).join("\n");
+      answer = `Departmental Breakdown:\n${deptList}`;
+    } else {
+      answer = `Executive Summary (Live Database Metrics):\n- Total Grievances: ${totalCount}\n- Pending Resolution: ${pendingCount}\n- Resolved & Verified: ${resolvedCount}\n- Escalated / SLA Breached: ${escalatedCount}`;
     }
 
-    // Heuristic Fallback Response if Gemini API Key absent/unreachable
-    const topCat = categoryBreakdown[0] ? `${categoryBreakdown[0].category} (${categoryBreakdown[0].count} complaints)` : "None";
-    const answer = `Based on live database statistics:\n- Total Grievances: ${totalCount}\n- Pending Resolution: ${pendingCount}\n- Resolved / Verified: ${resolvedCount}\n- Escalated / SLA Breached: ${escalatedCount}\n\nThe largest grievance category is ${topCat}.`;
-
-    return res.json({
-      answer,
-      metrics: dbContext,
-    });
+    return res.json({ answer, metrics: dbContext });
   } catch (err) {
     console.error("Admin Assistant Error:", err);
     return res.status(500).json({ error: "Failed to generate admin assistant response." });
@@ -139,14 +94,11 @@ Provide a clear, concise, executive analytical summary with key metrics and acti
 
 /**
  * POST /api/ai/semantic-search
- * Semantic Vector Search over Grievances
  */
 router.post("/semantic-search", authenticateToken, async (req, res) => {
   try {
     const { query } = req.body;
-    if (!query) {
-      return res.status(400).json({ error: "Query is required." });
-    }
+    if (!query) return res.status(400).json({ error: "Query is required." });
 
     const keywords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
 
@@ -154,7 +106,7 @@ router.post("/semantic-search", authenticateToken, async (req, res) => {
 
     const matches = allGrievances
       .map((g) => {
-        const text = `${g.title || ""} ${g.description || ""} ${g.category} ${g.department} ${g.location_text || ""}`.toLowerCase();
+        const text = `${g.description || ""} ${g.category} ${g.department} ${g.location_text || ""}`.toLowerCase();
         const score = keywords.reduce((acc, kw) => (text.includes(kw) ? acc + 1 : acc), 0);
         return { ...g, score };
       })

@@ -1,0 +1,9 @@
+{
+  "model_name": "JanSeva Hierarchical Grievance Classifier",
+  "version": "2.0.0",
+  "algorithm": "Hierarchical Category-Scoped Calibrated LinearSVC",
+  "training_samples": 1800,
+  "features_extracted": 3822,
+  "categories_count": 9,
+  "created_at": "2026-09-06 15:20:52"
+}

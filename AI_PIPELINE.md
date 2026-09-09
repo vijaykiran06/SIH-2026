@@ -1,26 +1,36 @@
-# AI Pipeline Documentation
+# AI Pipeline Documentation — Local Offline ML Architecture
 
 ---
 
-## 1. Natural Language Grievance Assistant Pipeline
+## 1. Local Text Classification Machine Learning Pipeline
 
 ```
-Citizen Input (Text / Voice)
+Citizen Input (Text / Voice Speech-to-Text)
            │
            ▼
-[ Language & Keyword Classifier ]
+[ Regex Location Extractor (`ml/location_extractor.py`) ]
            │
            ▼
-[ Google Gemini API (`gemini-1.5-flash`) ]
-(Structured JSON Extraction Prompt)
+[ TF-IDF Vectorizer (`tfidf_vectorizer.joblib`) ]
+(Word 1-2 & Char 3-5 n-grams, 1,146 features)
            │
            ▼
-[ Zod Schema Validator ]
-(Enforces schema, valid categories & priority bounds)
+[ Multi-Output Scikit-Learn Classifiers (`LinearSVC`) ]
+- Department Classifier
+- Category Classifier
+- Subcategory Classifier
+- Priority Classifier
            │
            ▼
-[ Heuristic NLP Fallback Engine ]
-(Guarantees offline reliability if API Key absent)
+[ Priority Safety Override Layer ]
+(Scans for exposed live wires, fires, gas leaks → CRITICAL)
+           │
+           ▼
+[ Confidence Threshold Check ]
+(If Confidence < 0.70 → triggers `needs_clarification`)
+           │
+           ▼
+[ Structured Grievance JSON Output ]
 ```
 
 ---
@@ -49,9 +59,6 @@ New Complaint Registered
 
 ---
 
-## 3. Database-Grounded AI Admin Assistant
+## 3. Grounded SQL Analytics Engine
 
-To eliminate metric hallucination:
-1. SQL aggregations query real database tables for total count, pending count, resolved count, escalated count, category breakdown, department breakdown.
-2. Formatted SQL metrics context is injected into the LLM system prompt.
-3. Gemini generates an analytical response grounded strictly in verified database figures.
+Executive analytics answers are derived 100% locally by executing structured SQL query aggregations against live database tables, completely eliminating cloud LLM dependencies and metric hallucination risks.

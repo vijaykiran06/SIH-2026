@@ -11,7 +11,7 @@ export default function AIGrievanceAssistant() {
   const [messages, setMessages] = useState([
     {
       sender: "ai",
-      text: "Hello! Tell me what problem you are facing in your locality.",
+      text: "Hello! 👋 I'm the Civic AI Assistant. Tell me what problem you are facing in your locality.",
     },
   ]);
 
@@ -19,6 +19,7 @@ export default function AIGrievanceAssistant() {
   const [isListening, setIsListening] = useState(false);
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState(null);
+  const [conversationState, setConversationState] = useState({});
   const [showPreview, setShowPreview] = useState(false);
   const [createdGrievance, setCreatedGrievance] = useState(null);
   const [geoCoords, setGeoCoords] = useState({ lat: null, lng: null });
@@ -42,23 +43,14 @@ export default function AIGrievanceAssistant() {
     recognition.continuous = false;
     recognition.interimResults = false;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
+    recognition.onstart = () => setIsListening(true);
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       setInputText(transcript);
       setIsListening(false);
     };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
 
     recognition.start();
   };
@@ -101,14 +93,6 @@ export default function AIGrievanceAssistant() {
     setLoading(true);
 
     try {
-      let locationToUse = extractedData?.location_text || null;
-      let textToProcess = userQuery;
-
-      if (extractedData && extractedData.missing_information?.includes("location_text")) {
-        locationToUse = userQuery;
-        textToProcess = extractedData.description;
-      }
-
       const res = await fetch("/api/ai/parse-complaint", {
         method: "POST",
         headers: {
@@ -116,42 +100,58 @@ export default function AIGrievanceAssistant() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          text: textToProcess,
-          location_text: locationToUse,
+          text: userQuery,
+          location_text: extractedData?.location_text || null,
+          conversation_state: conversationState,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to analyze complaint");
+      if (!res.ok) throw new Error(data.error || "Failed to analyze message");
 
-      const result = data.extracted_data;
-      setExtractedData(result);
+      const newState = data.conversation_state || {};
+      setConversationState(newState);
 
-      if (result.missing_information && result.missing_information.includes("location_text")) {
+      if (data.is_grievance && data.extracted_data) {
+        const result = data.extracted_data;
+        setExtractedData(result);
+
+        if (newState.awaitingField === "location_text") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: "ai",
+              text: data.ai_message || `I understand this is a ${result.category} issue. Where is the problem occurring?`,
+              showLocButton: true,
+            },
+          ]);
+          setShowPreview(false);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: "ai",
+              text: data.ai_message || `Thank you. I have prepared your ${result.category} grievance for the ${result.department}. Please confirm below:`,
+            },
+          ]);
+          setShowPreview(true);
+        }
+      } else {
+        // Conversational non-grievance response (Greeting, Capabilities, Thanks, etc.)
         setMessages((prev) => [
           ...prev,
           {
             sender: "ai",
-            text: `I understand this is a ${result.category} issue (${result.subcategory}). Where is the problem occurring?`,
-            showLocButton: true,
+            text: data.ai_message,
           },
         ]);
         setShowPreview(false);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: "ai",
-            text: `Thank you. I have prepared your ${result.category} grievance for the ${result.department}. Please confirm below:`,
-          },
-        ]);
-        setShowPreview(true);
       }
     } catch (err) {
       console.error("AI Parse Error:", err);
       setMessages((prev) => [
         ...prev,
-        { sender: "ai", text: "Sorry, I had trouble parsing that. Please describe your issue again." },
+        { sender: "ai", text: "Sorry, I had trouble processing that. Please describe your issue again." },
       ]);
     } finally {
       setLoading(false);
@@ -194,7 +194,7 @@ export default function AIGrievanceAssistant() {
           <Bot style={{ color: "#3b82f6" }} /> AI Grievance Assistant
         </h2>
         <p style={{ color: "#94a3b8", fontSize: "0.95rem" }}>
-          Describe your civic problem naturally in English or Hindi (Text or Voice). AI will automatically route it to the right department.
+          Describe your civic problem naturally in English or Hindi (Text or Voice). Local AI will automatically route it to the right department.
         </p>
       </div>
 
@@ -238,7 +238,7 @@ export default function AIGrievanceAssistant() {
             <button className="btn btn-primary" onClick={() => navigate("/")}>
               View My Grievances Dashboard
             </button>
-            <button className="btn btn-outline" onClick={() => { setCreatedGrievance(null); setExtractedData(null); setShowPreview(false); setMessages([{ sender: "ai", text: "Hello! Tell me what problem you are facing in your locality." }]); }}>
+            <button className="btn btn-outline" onClick={() => { setCreatedGrievance(null); setExtractedData(null); setConversationState({}); setShowPreview(false); setMessages([{ sender: "ai", text: "Hello! 👋 Tell me what problem you are facing in your locality." }]); }}>
               <RefreshCw size={16} /> File Another Grievance
             </button>
           </div>
@@ -249,9 +249,9 @@ export default function AIGrievanceAssistant() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
               <div className="avatar ai" style={{ width: "30px", height: "30px" }}>AI</div>
               <div>
-                <div style={{ fontWeight: "600", fontSize: "0.95rem" }}>Civic AI Lodging Bot</div>
+                <div style={{ fontWeight: "600", fontSize: "0.95rem" }}>Civic AI Lodging Bot (Local ML)</div>
                 <div style={{ fontSize: "0.75rem", color: "#10b981", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", display: "inline-block" }}></span> Online (Voice & Text)
+                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", display: "inline-block" }}></span> Offline Intent & Grievance Models Active
                 </div>
               </div>
             </div>
@@ -262,7 +262,7 @@ export default function AIGrievanceAssistant() {
               <div key={idx} className={`chat-message ${msg.sender}`}>
                 <div className={`avatar ${msg.sender}`}>{msg.sender === "ai" ? "AI" : "You"}</div>
                 <div>
-                  <div className="message-bubble">{msg.text}</div>
+                  <div className="message-bubble" style={{ whiteSpace: "pre-line" }}>{msg.text}</div>
                   {msg.showLocButton && (
                     <button className="btn btn-outline" style={{ marginTop: "0.5rem", fontSize: "0.8rem", padding: "0.35rem 0.75rem" }} onClick={handleUseMyLocation}>
                       <MapPin size={14} /> Use My Current GPS Location
@@ -276,7 +276,7 @@ export default function AIGrievanceAssistant() {
               <div className="chat-message ai">
                 <div className="avatar ai">AI</div>
                 <div className="message-bubble" style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#94a3b8" }}>
-                  <RefreshCw className="spin" size={16} /> Analyzing your complaint...
+                  <RefreshCw className="spin" size={16} /> Local AI understanding message...
                 </div>
               </div>
             )}
@@ -306,7 +306,7 @@ export default function AIGrievanceAssistant() {
             <input
               type="text"
               className="chat-input"
-              placeholder={isListening ? "Listening... Speak your complaint" : "Type or speak complaint (e.g. 'No water supply for 3 days in Model Town')..."}
+              placeholder={isListening ? "Listening... Speak your complaint" : "Type a message (e.g. 'hi', 'what can you do', 'No water supply in Model Town')..."}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               disabled={loading || showPreview}
