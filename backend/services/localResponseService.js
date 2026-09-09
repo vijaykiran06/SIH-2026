@@ -27,8 +27,9 @@ const DENIAL_RESPONSES = [
 ];
 
 const UNKNOWN_RESPONSES = [
-  "I'm not completely sure I understood that. Are you trying to report a civic problem? If yes, please describe what is happening and where in your locality.",
-  "I couldn't quite classify your message. Could you tell me a little more about the civic problem you're facing?"
+  "Please tell me the actual problem related to government or civic issues (like water, roads, electricity, etc.).",
+  "I can only help with civic and government-related problems. Please describe a valid issue you are facing.",
+  "That doesn't sound like a civic issue. Please describe an actual problem related to municipal or government services."
 ];
 
 function getRandomResponse(array) {

@@ -49,7 +49,7 @@ def predict_intent(text):
         confidence = 0.90
 
     # Low confidence threshold -> UNKNOWN
-    if confidence < 0.35 and predicted_intent != "GRIEVANCE":
+    if confidence < 0.65:
         predicted_intent = "UNKNOWN"
 
     return {
