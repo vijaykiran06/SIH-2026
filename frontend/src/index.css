@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+
 :root {
   --bg-dark: #0f172a;
   --bg-card: #1e293b;
@@ -8,10 +10,24 @@
   --text-muted: #94a3b8;
   --accent-blue: #3b82f6;
   --accent-blue-hover: #2563eb;
+  /* Warm Beige/Cream Light Theme */
+  --bg-dark: #faf8f5;           /* Was dark, now light beige */
+  --bg-card: #ffffff;           /* Pure white cards */
+  --bg-card-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --text-main: #1e293b;         /* Dark charcoal for main text */
+  --text-muted: #64748b;        /* Slate gray for muted text */
+  
+  /* JanSahay Brand Colors (Green & Warm) */
+  --accent-blue: #059669;       /* Repurposed to Emerald Green */
+  --accent-blue-hover: #047857; /* Darker Green */
   --accent-emerald: #10b981;
   --accent-amber: #f59e0b;
   --accent-rose: #ef4444;
   --accent-purple: #8b5cf6;
+  --accent-purple: #059669;     /* Same green to avoid purple */
+  
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
 }
@@ -67,6 +83,7 @@ button {
 /* Header & Navbar */
 .navbar {
   background-color: #090d16;
+  background-color: #ffffff;
   border-bottom: 1px solid var(--border-color);
   padding: 0.85rem 1.5rem;
   display: flex;
@@ -75,6 +92,7 @@ button {
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .nav-brand {
@@ -87,6 +105,7 @@ button {
   width: 36px;
   height: 36px;
   background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  background: var(--accent-blue);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -100,6 +119,7 @@ button {
   background: linear-gradient(to right, #ffffff, #94a3b8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: #064e3b; /* Dark green text */
 }
 
 .nav-links {
@@ -115,16 +135,22 @@ button {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
 
   &:hover, &.active {
     color: var(--text-main);
   }
+.nav-item:hover, .nav-item.active {
+  color: var(--accent-blue);
 }
 
 .user-badge {
   background-color: rgba(59, 130, 246, 0.15);
   border: 1px solid rgba(59, 130, 246, 0.3);
   color: #60a5fa;
+  background-color: rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  color: var(--accent-blue);
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -145,38 +171,53 @@ button {
 .btn-primary {
   background-color: var(--accent-blue);
   color: #ffffff;
+}
 
   &:hover {
     background-color: var(--accent-blue-hover);
   }
+.btn-primary:hover {
+  background-color: var(--accent-blue-hover);
 }
 
 .btn-success {
   background-color: var(--accent-emerald);
   color: #ffffff;
+}
 
   &:hover {
     background-color: #059669;
   }
+.btn-success:hover {
+  background-color: #059669;
 }
 
 .btn-secondary {
   background-color: #334155;
   color: #f8fafc;
+  background-color: #f1f5f9;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
 
   &:hover {
     background-color: #475569;
   }
+.btn-secondary:hover {
+  background-color: #e2e8f0;
 }
 
 .btn-outline {
   background-color: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-main);
+}
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.05);
   }
+.btn-outline:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .card {
@@ -185,6 +226,7 @@ button {
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 /* Chat Assistant Styling */
@@ -196,10 +238,12 @@ button {
   border: 1px solid var(--border-color);
   border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
 .chat-header {
   background-color: #111827;
+  background-color: #f8fafc;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -214,6 +258,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  background-color: var(--bg-dark); /* Beige chat background */
 }
 
 .chat-message {
@@ -244,12 +289,15 @@ button {
 
 .avatar.ai {
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--accent-blue);
   color: white;
 }
 
 .avatar.user {
   background-color: #475569;
   color: white;
+  background-color: #e2e8f0;
+  color: #334155;
 }
 
 .message-bubble {
@@ -257,10 +305,12 @@ button {
   border-radius: 14px;
   font-size: 0.95rem;
   line-height: 1.5;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .chat-message.ai .message-bubble {
   background-color: #0f172a;
+  background-color: #ffffff;
   border: 1px solid var(--border-color);
   color: var(--text-main);
   border-top-left-radius: 2px;
@@ -275,6 +325,7 @@ button {
 .chat-input-area {
   padding: 1rem 1.5rem;
   background-color: #0f172a;
+  background-color: #ffffff;
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 0.75rem;
@@ -284,16 +335,22 @@ button {
 .chat-input {
   flex: 1;
   background-color: #1e293b;
+  background-color: #f8fafc;
   border: 1px solid var(--border-color);
   color: var(--text-main);
   padding: 0.8rem 1.2rem;
   border-radius: 10px;
   font-size: 0.95rem;
+}
 
   &:focus {
     outline: none;
     border-color: var(--accent-blue);
   }
+.chat-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background-color: #ffffff;
 }
 
 /* Priority Badges */
@@ -313,23 +370,34 @@ button {
   background-color: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .badge-medium {
   background-color: rgba(245, 158, 11, 0.15);
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.3);
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .badge-high {
   background-color: rgba(239, 68, 68, 0.15);
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .badge-critical {
   background-color: rgba(220, 38, 38, 0.3);
   color: #fca5a5;
+  background-color: rgba(220, 38, 38, 0.15);
+  color: #b91c1c;
   border: 1px solid #ef4444;
   animation: pulse 2s infinite;
 }
@@ -338,15 +406,20 @@ button {
   background-color: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
   border: 1px solid rgba(59, 130, 246, 0.3);
+  background-color: rgba(5, 150, 105, 0.1);
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.2);
 }
 
 /* Grievance Preview Card */
 .preview-card {
   background: linear-gradient(135deg, #1e293b, #0f172a);
+  background: #ffffff;
   border: 1px solid var(--accent-blue);
   border-radius: 12px;
   padding: 1.5rem;
   margin-top: 1rem;
+  box-shadow: 0 4px 6px rgba(5, 150, 105, 0.05);
 }
 
 .preview-grid {
@@ -355,8 +428,10 @@ button {
   gap: 1rem;
   margin: 1rem 0;
   background: rgba(0, 0, 0, 0.2);
+  background: #f8fafc;
   padding: 1rem;
   border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 .preview-item {
@@ -395,11 +470,18 @@ button {
   flex-direction: column;
   gap: 0.75rem;
   transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
 
   &:hover {
     border-color: var(--accent-blue);
     transform: translateY(-2px);
   }
+.grievance-card:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.05);
 }
 
 .tracking-header {
@@ -412,6 +494,7 @@ button {
   font-family: var(--font-heading);
   font-weight: 700;
   color: #60a5fa;
+  color: var(--accent-blue);
   font-size: 1rem;
 }
 
