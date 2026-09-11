@@ -22,7 +22,24 @@ router.post("/parse-complaint", authenticateToken, async (req, res) => {
       state.pendingGrievance = { ...state.pendingGrievance, location_text };
     }
 
-    const pipelineResult = await processUserMessage(text, state);
+    // Auto-Translate Hindi/Regional text to English for the Local ML Model
+    let processedText = text;
+    try {
+      // Check if text contains non-ASCII characters (e.g. Devanagari Hindi)
+      if (/[^\x00-\x7F]/.test(text)) {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+        const transRes = await fetch(url);
+        const transData = await transRes.json();
+        if (transData && transData[0] && transData[0][0] && transData[0][0][0]) {
+          processedText = transData[0][0][0];
+          console.log(`Translated "${text}" -> "${processedText}"`);
+        }
+      }
+    } catch (e) {
+      console.error("Translation failed, falling back to original text:", e);
+    }
+
+    const pipelineResult = await processUserMessage(processedText, state);
 
     return res.json({
       success: true,
