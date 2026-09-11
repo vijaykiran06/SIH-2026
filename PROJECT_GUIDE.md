@@ -8,9 +8,9 @@ This guide outlines exactly how your SIH 2026 project works end-to-end, its core
 
 ### Step 1: The Citizen Experience (Conversational Lodging)
 1. A citizen visits the portal and opens the **AI Grievance Assistant**.
-2. Instead of filling out complex, multi-page forms, the citizen simply speaks or types their problem naturally in their own language (e.g., *"There is a huge pothole near the railway station and it's causing accidents"*).
-3. The **Local Machine Learning Pipeline** instantly analyzes the text, detects the intent, and extracts the core problem, the exact department it belongs to (e.g., *Public Works Department*), the severity/priority (*HIGH*), and the location.
-4. If the user forgets to mention the location, the AI asks a follow-up question conversationally.
+2. Instead of filling out complex, multi-page forms, the citizen simply speaks or types their problem naturally in their own language (e.g., *"There is a huge pothole near the railway station"*, or in Hindi/Telugu).
+3. The **Local Machine Learning Pipeline** instantly translates (if necessary), analyzes the text, detects the intent, and extracts the core problem, the exact department it belongs to (e.g., *Public Works Department*), the severity/priority (*HIGH*), and the location.
+4. **Dynamic Clarification:** If the ML model detects the intent with *medium* confidence (e.g., ambiguous wording), or if a location is missing, it dynamically asks the user a conversational follow-up question.
 5. The citizen confirms, and the grievance is officially lodged in the system.
 
 ### Step 2: Intelligent Routing & Deduplication
@@ -32,13 +32,13 @@ This guide outlines exactly how your SIH 2026 project works end-to-end, its core
 
 Your project uses a modern, robust, and highly scalable tech stack:
 
-* **Frontend:** React.js (Vite) with an intuitive, conversational UI.
-* **Backend Gateway:** Node.js & Express.js handling authentication (JWT), routing, and background Cron jobs.
+* **Frontend:** React.js (Vite) with an intuitive, modern split-screen UI.
+* **Backend Gateway:** Node.js & Express.js handling authentication, API translations, routing, and background Cron jobs.
 * **Database:** **Supabase PostgreSQL**. A highly scalable, cloud-hosted relational database that ensures data integrity and high availability.
 * **AI & Machine Learning (The Core USP):**
-  * **100% Offline Local Models:** Your team trained custom `scikit-learn` models (TF-IDF Vectorizers, SVC Classifiers). You are **not** reliant on paid APIs like OpenAI or Gemini. The AI runs locally, securely, and completely free of cost.
-  * **Intent Classification:** Distinguishes between greetings, denials, and actual civic problems.
-  * **Entity Extraction:** Categorizes text into 9 distinct government departments with dynamic priority scoring.
+  * **100% Offline Local Models:** Your team trained custom `scikit-learn` models (TF-IDF Vectorizers, Calibrated SVC Classifiers). You are **not** reliant on paid APIs like OpenAI or Gemini. The AI runs locally, securely, and completely free of cost.
+  * **Multilingual Translation Layer:** Node.js intercepts non-English text (Devanagari, Telugu) and translates it to English *before* ML processing, standardizing database records.
+  * **Robust Feature Bias & Typo Handling:** The ML pipeline has been explicitly trained to handle heavy misspellings (e.g., "toliets", "mosquites") and complex sentence structures, bypassing standard ML keyword biases.
 
 ---
 
@@ -47,16 +47,19 @@ Your project uses a modern, robust, and highly scalable tech stack:
 When presenting this project to hackathon judges, focus on these **Unique Selling Propositions (USPs)**:
 
 ### 1. 100% Data Privacy & Zero API Costs (Local ML)
-Most competitors will just wrap the ChatGPT or Gemini API in a website. This is expensive, requires internet, and raises data privacy concerns for governments. **Your solution uses a completely local, self-trained Machine Learning pipeline**. It costs $0 to run, guarantees citizen data never leaves the government servers, and proves deep technical competence.
+Most competitors will just wrap the ChatGPT or Gemini API in a website. This is expensive, requires internet, and raises severe data privacy concerns for governments. **Your solution uses a completely local, self-trained Machine Learning pipeline**. It costs $0 to run, guarantees citizen data never leaves the government servers, and proves deep technical competence.
 
-### 2. Radical Accessibility (Conversational UI)
+### 2. Flawless Multilingual & Typo Tolerance
+Citizens don't always speak perfect English. Your platform features a **Dynamic Language Selector** (Hindi, Telugu, English) for Voice Input, and the backend perfectly handles grammatical errors and heavy spelling mistakes (like *"mosquites in toliets"*) by evaluating semantic meaning rather than hardcoded keywords. 
+
+### 3. Radical Accessibility (Conversational UI)
 Citizens don't know the difference between the "Municipal Drainage Board" and the "Water Supply Department." By allowing them to just say *"My street is flooded,"* the AI bridges the gap between everyday citizens and complex government bureaucracy.
 
-### 3. Solves the "Spam" Problem (Deduplication)
+### 4. Solves the "Spam" Problem (Deduplication)
 A major problem governments face is when one broken pipe generates 500 duplicate complaints. Your FAISS-powered AI clustering groups these automatically, saving officers hundreds of hours of manual triage.
 
-### 4. Zero Officer Complacency (Automated SLAs)
+### 5. Zero Officer Complacency (Automated SLAs)
 Government accountability is often low. Your system enforces strict Service Level Agreements (SLAs) with background cron jobs. If an officer ignores a ticket, their boss automatically gets notified. This guarantees timely resolution.
 
-### 5. Enterprise-Ready Database
+### 6. Enterprise-Ready Database
 By migrating from a local SQLite file to **Supabase PostgreSQL**, the platform is genuinely ready to handle millions of records and concurrent users, proving it is a production-ready system, not just a hackathon toy.

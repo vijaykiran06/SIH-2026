@@ -48,13 +48,22 @@ def predict_intent(text):
     else:
         confidence = 0.90
 
-    # Low confidence threshold -> UNKNOWN
-    if confidence < 0.65:
-        predicted_intent = "UNKNOWN"
+    # Multilingual/Semantic Confidence Fallback Logic
+    needs_clarification = False
+
+    if predicted_intent == "GRIEVANCE":
+        if confidence < 0.40:
+            predicted_intent = "UNKNOWN"  # Low confidence -> Reject
+        elif confidence < 0.65:
+            needs_clarification = True  # Medium confidence -> Clarify
+    else:
+        if confidence < 0.65:
+            predicted_intent = "UNKNOWN"
 
     return {
         "intent": predicted_intent,
-        "confidence": round(confidence, 2)
+        "confidence": round(confidence, 2),
+        "needs_clarification": needs_clarification
     }
 
 if __name__ == "__main__":

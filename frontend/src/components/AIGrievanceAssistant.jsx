@@ -29,7 +29,9 @@ export default function AIGrievanceAssistant() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, showPreview, createdGrievance]);
 
-  // Voice Recognition Handler (Web Speech API for English & Hindi)
+  const [speechLang, setSpeechLang] = useState("en-IN");
+  
+  // Voice Recognition Handler (Web Speech API)
   const handleVoiceInput = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -39,7 +41,7 @@ export default function AIGrievanceAssistant() {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "hi-IN"; // Supports Hindi & English code-switching
+    recognition.lang = speechLang; // Dynamic language based on user selection
     recognition.continuous = false;
     recognition.interimResults = false;
 
@@ -293,15 +295,30 @@ export default function AIGrievanceAssistant() {
           </div>
 
           <form onSubmit={handleSendMessage} className="chat-input-area">
-            <button
-              type="button"
-              className="btn btn-outline"
-              style={{ padding: "0.6rem", color: isListening ? "#ef4444" : "#94a3b8" }}
-              onClick={handleVoiceInput}
-              title="Speak complaint (Voice Input in Hindi / English)"
-            >
-              {isListening ? <MicOff size={20} className="spin" /> : <Mic size={20} />}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <select 
+                value={speechLang} 
+                onChange={(e) => setSpeechLang(e.target.value)}
+                style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-main)", fontSize: "0.8rem", cursor: "pointer", outline: "none" }}
+                title="Select Speech Language"
+              >
+                <option value="en-IN">English</option>
+                <option value="hi-IN">Hindi</option>
+                <option value="te-IN">Telugu</option>
+                <option value="ta-IN">Tamil</option>
+                <option value="mr-IN">Marathi</option>
+                <option value="bn-IN">Bengali</option>
+              </select>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ padding: "0.6rem", color: isListening ? "#ef4444" : "#94a3b8" }}
+                onClick={handleVoiceInput}
+                title="Speak complaint"
+              >
+                {isListening ? <MicOff size={20} className="spin" /> : <Mic size={20} />}
+              </button>
+            </div>
 
             <input
               type="text"

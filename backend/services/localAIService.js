@@ -150,6 +150,21 @@ async function processUserMessage(userText, existingState = null) {
     };
   }
 
+  // Handle Medium Confidence GRIEVANCE
+  if (intent === "GRIEVANCE" && intentResult.needs_clarification) {
+    return {
+      is_grievance: true,
+      intent: "GRIEVANCE_CLARIFY",
+      ai_message: "I understand that you are facing a civic problem. Please provide more details or your location/ward so I can help you lodge the grievance.",
+      extracted_data: null,
+      conversation_state: {
+        ...state,
+        awaitingField: "description",
+        readyForSubmission: false
+      }
+    };
+  }
+
   // Handle CORRECTION intent
   if (intent === "CORRECTION" && state.pendingGrievance) {
     return {

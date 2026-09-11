@@ -2,10 +2,10 @@
   "model_name": "JanSeva Local Intent Detector",
   "version": "1.0.0",
   "algorithm": "TF-IDF + Calibrated Logistic Regression",
-  "training_samples": 872,
-  "features": 639,
-  "accuracy": 1.0,
-  "f1_score": 1.0,
+  "training_samples": 916,
+  "features": 722,
+  "accuracy": 0.9946,
+  "f1_score": 0.9945,
   "intents": [
     "GRIEVANCE",
     "DENIAL",
@@ -16,5 +16,5 @@
     "CAPABILITIES",
     "UNKNOWN"
   ],
-  "created_at": "2026-09-06 15:13:26"
+  "created_at": "2026-09-11 17:56:15"
 }
